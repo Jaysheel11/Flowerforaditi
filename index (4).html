@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A flower for you</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌷</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbeff1; --ink: #5a1f33; --soft: #9a6576;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1a0e1c; --ink: #f6d9e2; --soft: #b88a9c; }
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .msg {
+    position: fixed; left: 0; right: 0;
+    bottom: calc(5vh + env(safe-area-inset-bottom, 0px));
+    text-align: center; pointer-events: none; padding: 0 1rem;
+    opacity: 0; transition: opacity 2.5s ease;
+  }
+  .msg.show { opacity: 1; }
+  .msg h1 { font-style: italic; font-weight: 500; font-size: clamp(1.8rem, 6vw, 3rem); margin: 0; }
+  .msg p { font-style: italic; font-size: clamp(.95rem, 3vw, 1.15rem); margin: .4rem 0 0; color: var(--soft); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="msg" id="msg"><h1 id="title"></h1><p id="sub"></p></div>
+<script>
+/* ============================================
+   ✏️  EDIT YOUR MESSAGE HERE
+   ============================================ */
+// Names: one is picked at random each time a flower blooms
+const NAMES = ["Aditi", "sweetie", "kitten", "buttercup"];
+
+// Messages: {name} gets swapped for one of the names above
+const MESSAGES = [
+  "For you, {name}",
+  "Just because, {name}",
+  "Picked this one for you, {name}",
+  "A little something for {name}",
+  "Thinking of you, {name}",
+  "This one's yours, {name}",
+  "Bloomed just for you, {name}",
+  "Hi {name}, this is for you",
+  "Saw this and thought of you, {name}",
+  "Something pretty for someone prettier, {name}",
+  "You make everything bloom, {name}",
+  "Hope this makes you smile, {name}",
+  "A flower for my favourite person, {name}",
+  "Sending you a little sunshine, {name}",
+  "You deserve all the flowers, {name}",
+  "One more for you, {name}",
+  "Made this one just for you, {name}",
+  "Every flower reminds me of you, {name}",
+  "You're my favourite thought, {name}",
+  "Here's a little hello, {name}",
+  "Wish I could hand you this one, {name}",
+  "Brightening your day, {name}",
+  "Still thinking about you, {name}",
+  "You're the best part of my day, {name}",
+  "Grew this one with you in mind, {name}",
+  "For the girl who makes me smile, {name}",
+  "Missing you a little, {name}",
+  "Just a small reminder that you're wonderful, {name}",
+  "Here's to you, {name}"
+];
+
+// Only shown when a tulip is on screen
+const TULIP_MESSAGES = [
+  "Your favourite, a tulip for you, {name}",
+  "A tulip, because you love them, {name}",
+  "Tulips for my tulip, {name}"
+];
+
+// Only shown when a sunflower is on screen
+const SUNFLOWER_MESSAGES = [
+  "A sunflower for my sunshine, {name}",
+  "You're my sunflower, {name}",
+  "Sunflowers always find the light, like you, {name}"
+];
+
+// Only shown when tulips AND sunflowers are both on screen
+const BOTH_MESSAGES = [
+  "Tulips, sunflowers and you, {name}",
+  "All your favourites in one bunch, {name}"
+];
+
+const SUBTEXT = "Tap for a new flower. No two are the same.";
+/* ============================================ */
+
+(() => {
+  const titleEl = document.getElementById('title');
+  document.getElementById('sub').textContent = SUBTEXT;
+  let lastMsg = "";
+  let currentTypes = [];
+  function newMessage() {
+    const hasTulip = currentTypes.includes('tulip');
+    const hasSun = currentTypes.includes('sunflower');
+    let special = [];
+    if (hasTulip && hasSun) special = BOTH_MESSAGES.concat(TULIP_MESSAGES, SUNFLOWER_MESSAGES);
+    else if (hasTulip) special = TULIP_MESSAGES;
+    else if (hasSun) special = SUNFLOWER_MESSAGES;
+    // 40% chance of a flower-specific line when one fits
+    const pool = special.length && Math.random() < 0.4 ? special : MESSAGES;
+    let m, tries = 0;
+    do {
+      const name = NAMES[Math.floor(Math.random() * NAMES.length)];
+      m = pool[Math.floor(Math.random() * pool.length)].replace("{name}", name);
+    } while (m === lastMsg && ++tries < 10);
+    lastMsg = m;
+    titleEl.textContent = m;
+  }
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const msg = document.getElementById('msg');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, dpr, particles = [], start = 0, msgTimer;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  /* ---------- palettes ---------- */
+  const PALETTES = [
+    ['#e8335f', '#ffb3c4', '#ffd36b'], ['#b0102e', '#ff5470', '#3a1a12'],
+    ['#6a2fb8', '#c9a3ff', '#ffe08a'], ['#ff8a00', '#ffd27a', '#7a3b12'],
+    ['#ffffff', '#ffe9f0', '#f2b233'], ['#2f6bd8', '#9cc6ff', '#fff2b0'],
+    ['#ff5a36', '#ffc1a8', '#5a2b1a'], ['#d6336c', '#f7c6ff', '#ffe08a'],
+    ['#9b1b5a', '#ff9ccf', '#fff0c2']
+  ];
+  const TULIP_PALETTES = [
+    ['#c4123a', '#ff5c7a'], ['#d6336c', '#ffb0c8'], ['#e8a400', '#ffe066'],
+    ['#6b2fa8', '#c39bff'], ['#e8590c', '#ffa94d'], ['#c2255c', '#ffdeeb'],
+    ['#a61e4d', '#f783ac']
+  ];
+  const SHAPES = ['round', 'pointed', 'heart', 'thin'];
+
+  /* ---------- generic random flower ---------- */
+  function petalPath(o, len, wid, shape) {
+    o.beginPath();
+    if (shape === 'round') o.ellipse(len * 0.55, 0, len * 0.55, wid / 2, 0, 0, Math.PI * 2);
+    else if (shape === 'pointed') {
+      o.moveTo(0, 0);
+      o.quadraticCurveTo(len * 0.5, -wid * 0.75, len, 0);
+      o.quadraticCurveTo(len * 0.5, wid * 0.75, 0, 0);
+    } else if (shape === 'heart') {
+      o.moveTo(0, 0);
+      o.bezierCurveTo(len * 0.3, -wid * 0.9, len * 1.05, -wid * 0.8, len * 0.88, 0);
+      o.bezierCurveTo(len * 1.05, wid * 0.8, len * 0.3, wid * 0.9, 0, 0);
+    } else o.ellipse(len * 0.55, 0, len * 0.55, wid / 4, 0, 0, Math.PI * 2);
+  }
+
+  function drawRandomFlower(o, cx, cy, s) {
+    const pal = pick(PALETTES);
+    const shape = pick(SHAPES);
+    const n = Math.floor(rand(5, shape === 'thin' ? 22 : 13));
+    const rings = Math.floor(rand(1, 4));
+    const baseLen = rand(85, 120), baseWid = shape === 'thin' ? rand(30, 40) : rand(35, 55);
+    const spin = rand(0, Math.PI * 2);
+    for (let r = 0; r < rings; r++) {
+      const f = 1 - r * 0.28, len = baseLen * f * s, wid = baseWid * f * s;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + spin + r * (Math.PI / n);
+        o.save(); o.translate(cx, cy); o.rotate(a + rand(-0.06, 0.06));
+        const g = o.createLinearGradient(0, 0, len, 0);
+        if (r === 0) { g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]); }
+        else { g.addColorStop(0, pal[1]); g.addColorStop(1, pal[0]); }
+        o.fillStyle = g;
+        petalPath(o, len * rand(0.92, 1.05), wid, shape);
+        o.fill(); o.restore();
+      }
+    }
+    o.fillStyle = pal[2];
+    o.beginPath(); o.arc(cx, cy, rand(18, 34) * s, 0, Math.PI * 2); o.fill();
+  }
+
+  /* ---------- tulip ---------- */
+  function drawTulip(o, cx, cy, s) {
+    const [dark, light] = pick(TULIP_PALETTES);
+    const w = rand(95, 115) * s, h = rand(115, 140) * s;
+    const tilt = rand(-0.15, 0.15);
+    o.save(); o.translate(cx, cy); o.rotate(tilt);
+
+    // back petal
+    o.fillStyle = dark;
+    o.beginPath();
+    o.moveTo(-w * 0.45, h * 0.15);
+    o.quadraticCurveTo(-w * 0.25, -h * 0.75, 0, -h * 0.62);
+    o.quadraticCurveTo(w * 0.25, -h * 0.75, w * 0.45, h * 0.15);
+    o.closePath(); o.fill();
+
+    // side petals
+    [-1, 1].forEach(d => {
+      const g = o.createLinearGradient(0, h * 0.45, d * w * 0.5, -h * 0.6);
+      g.addColorStop(0, dark); g.addColorStop(1, light);
+      o.fillStyle = g;
+      o.beginPath();
+      o.moveTo(0, h * 0.45);
+      o.quadraticCurveTo(d * w * 0.75, h * 0.3, d * w * 0.5, -h * 0.55);
+      o.quadraticCurveTo(d * w * 0.1, -h * 0.15, 0, h * 0.45);
+      o.fill();
+    });
+
+    // front petal
+    const g = o.createLinearGradient(0, h * 0.45, 0, -h * 0.7);
+    g.addColorStop(0, dark); g.addColorStop(1, light);
+    o.fillStyle = g;
+    o.beginPath();
+    o.moveTo(-w * 0.38, h * 0.3);
+    o.quadraticCurveTo(-w * 0.42, -h * 0.45, 0, -h * 0.72);
+    o.quadraticCurveTo(w * 0.42, -h * 0.45, w * 0.38, h * 0.3);
+    o.quadraticCurveTo(0, h * 0.55, -w * 0.38, h * 0.3);
+    o.fill();
+    o.restore();
+  }
+
+  /* ---------- sunflower ---------- */
+  function drawSunflower(o, cx, cy, s) {
+    const R = rand(36, 46) * s;
+    const n = Math.floor(rand(18, 26));
+    const len = rand(55, 72) * s, wid = rand(20, 26) * s;
+    const spin = rand(0, Math.PI * 2);
+    [['#e09b00', 0], ['#ffd23f', Math.PI / n]].forEach(([col, off], ring) => {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + spin + off;
+        o.save(); o.translate(cx, cy); o.rotate(a + rand(-0.05, 0.05));
+        o.translate(R * 0.75, 0);
+        o.fillStyle = col;
+        petalPath(o, len * (ring ? 0.88 : 1) * rand(0.9, 1.08), wid, 'pointed');
+        o.fill(); o.restore();
+      }
+    });
+    o.fillStyle = '#4a2a0e';
+    o.beginPath(); o.arc(cx, cy, R, 0, Math.PI * 2); o.fill();
+    for (let i = 0; i < 260; i++) {           // seed spiral
+      const r = R * 0.95 * Math.sqrt(i / 260), a = i * 2.39996;
+      o.fillStyle = i % 3 ? '#7a4a1a' : '#2c1606';
+      o.beginPath(); o.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1.6 * s + 0.6, 0, Math.PI * 2); o.fill();
+    }
+  }
+
+  /* ---------- stem + leaves ---------- */
+  function drawStem(o, x0, y0, x1, y1, s, type) {
+    const bend = rand(-35, 35) * s;
+    o.strokeStyle = '#3f8f5a'; o.lineWidth = (type === 'sunflower' ? 11 : 8) * s; o.lineCap = 'round';
+    o.beginPath(); o.moveTo(x0, y0);
+    o.bezierCurveTo(x0 + bend, y0 + (y1 - y0) * 0.4, x1 - bend, y0 + (y1 - y0) * 0.7, x1, y1);
+    o.stroke();
+    o.fillStyle = pick(['#4fae6c', '#5cbf74', '#3e9e5e']);
+    const leaves = type === 'tulip' ? 2 : Math.floor(rand(1, 4));
+    for (let i = 0; i < leaves; i++) {
+      const t = rand(0.4, 0.85);
+      const lx = x0 + (x1 - x0) * t, ly = y0 + (y1 - y0) * t, d = i % 2 ? 1 : -1;
+      o.save(); o.translate(lx, ly);
+      if (type === 'tulip') {          // long upright blade
+        o.rotate(d * rand(0.25, 0.45));
+        o.beginPath(); o.moveTo(0, 0);
+        o.quadraticCurveTo(d * 30 * s, -60 * s, d * 8 * s, -130 * s);
+        o.quadraticCurveTo(d * 2 * s, -50 * s, 0, 0); o.fill();
+      } else {
+        o.rotate(d * rand(-0.9, -0.4));
+        o.beginPath(); o.ellipse(d * 40 * s, 0, rand(36, 52) * s, rand(12, 18) * s, 0, 0, Math.PI * 2); o.fill();
+      }
+      o.restore();
+    }
+  }
+
+  function pickType() {
+    const r = Math.random();
+    return r < 0.4 ? 'tulip' : r < 0.7 ? 'sunflower' : 'random';
+  }
+
+  /* ---------- build target points ---------- */
+  function buildTargets() {
+    const off = document.createElement('canvas');
+    off.width = W; off.height = H;
+    const o = off.getContext('2d');
+    const count = Math.random() < 0.45 ? 1 : (Math.random() < 0.6 ? 3 : 2);
+    const base = Math.min(W, H * 0.8) / 520;
+    const s = count === 1 ? base : base * 0.68;
+    const gx = W / 2, gy = H * 0.78;
+
+    let heads;
+    if (count === 1) heads = [[W / 2, H * 0.34]];
+    else if (count === 2) heads = [[W / 2 - 85 * base, H * 0.38], [W / 2 + 85 * base, H * 0.30]];
+    else heads = [[W / 2 - 120 * base, H * 0.40], [W / 2, H * 0.27], [W / 2 + 120 * base, H * 0.40]];
+    heads = heads.map(h => ({ x: h[0], y: h[1], type: pickType() }));
+    currentTypes = heads.map(h => h.type);
+
+    heads.forEach(h => drawStem(o, h.x, h.y + 30 * s, gx + rand(-10, 10) * base, gy, s, h.type));
+    heads.forEach(h => {
+      if (h.type === 'tulip') drawTulip(o, h.x, h.y, s);
+      else if (h.type === 'sunflower') drawSunflower(o, h.x, h.y, s);
+      else drawRandomFlower(o, h.x, h.y, s);
+    });
+
+    const data = o.getImageData(0, 0, W, H).data;
+    const step = Math.max(3, Math.round(4 * base));
+    const pts = [];
+    for (let y = 0; y < H; y += step)
+      for (let x = 0; x < W; x += step) {
+        const k = (y * W + x) * 4;
+        if (data[k + 3] > 128) pts.push({ x, y, c: `rgb(${data[k]},${data[k+1]},${data[k+2]})`, d: Math.hypot(x - gx, y - gy) });
+      }
+    return { pts, size: step * 0.42 };
+  }
+
+  /* ---------- animation ---------- */
+  function newFlower(fromScatter) {
+    const { pts, size } = buildTargets();
+    let maxD = 1; for (const p of pts) if (p.d > maxD) maxD = p.d;
+    particles = pts.map((p, i) => {
+      const old = particles[i];
+      return {
+        tx: p.x, ty: p.y, c: p.c,
+        x: old && fromScatter ? old.x : rand(-50, W + 50),
+        y: old && fromScatter ? old.y : rand(-50, H + 50),
+        r: size * rand(0.75, 1.25),
+        delay: (p.d / maxD) * 3500 + rand(0, 1800),   // stem first, petals last
+        speed: rand(0.012, 0.022),
+        phase: rand(0, Math.PI * 2)
+      };
+    });
+    if (fromScatter) particles.forEach(p => {
+      const a = rand(0, Math.PI * 2), d = rand(150, Math.max(W, H) * 0.7);
+      p.x += Math.cos(a) * d; p.y += Math.sin(a) * d;
+    });
+    start = performance.now();
+    msg.classList.remove('show');
+    clearTimeout(msgTimer);
+    if (reduce) newMessage();
+    msgTimer = setTimeout(() => { newMessage(); msg.classList.add('show'); }, reduce ? 0 : 8500);
+    if (reduce) particles.forEach(p => { p.x = p.tx; p.y = p.ty; });
+  }
+
+  function setup() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    newFlower(false);
+  }
+
+  function frame(now) {
+    ctx.clearRect(0, 0, W, H);
+    const t = now - start;
+    for (const p of particles) {
+      if (t > p.delay) {
+        p.x += (p.tx - p.x) * p.speed;
+        p.y += (p.ty - p.y) * p.speed;
+      } else {
+        p.x += Math.sin(now / 1200 + p.phase) * 0.3;
+        p.y += Math.cos(now / 1400 + p.phase) * 0.3;
+      }
+      const sway = reduce ? 0 : Math.sin(now / 1100 + p.phase) * 0.6;
+      ctx.globalAlpha = t > p.delay ? 1 : 0.55;
+      ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.arc(p.x + sway, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+
+  let resizeT, lastW = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    // ignore tiny height changes from mobile address bar
+    resizeT = setTimeout(() => { if (Math.abs(window.innerWidth - lastW) > 40 || !lastW) { lastW = window.innerWidth; setup(); } }, 250);
+  });
+  document.addEventListener('click', () => newFlower(true));
+  document.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') newFlower(true); });
+
+  lastW = window.innerWidth;
+  setup();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
