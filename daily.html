@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flower of the day</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌷</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f7e8ef; --soft: #bfa6b8; --gold: #e9c46a; --line: rgba(255,255,255,.13); }
+  * { box-sizing: border-box; }
+  html { background: #0d0711; }
+  body {
+    margin: 0; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; -webkit-tap-highlight-color: transparent;
+    background:
+      radial-gradient(600px 400px at 18% 12%, rgba(255,120,180,.13), transparent 70%),
+      radial-gradient(700px 500px at 85% 30%, rgba(160,120,255,.13), transparent 70%),
+      radial-gradient(ellipse at 50% 0%, #351a3a 0%, #170c1c 50%, #0d0711 100%) fixed;
+    min-height: 100vh;
+  }
+  .serif { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 500; font-style: italic; }
+  header { text-align: center; padding: calc(1.4rem + env(safe-area-inset-top, 0px)) 1rem 0; }
+  .kicker { font-size: .72rem; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+  header h1 { font-size: clamp(2.1rem, 6.5vw, 3.4rem); margin: .15rem 0 0; line-height: 1.05; }
+  header .date { color: var(--soft); margin-top: .3rem; font-size: .95rem; }
+  .tabs { display: flex; justify-content: center; gap: .5rem; margin-top: 1rem; }
+  .tab { font: 500 .88rem "DM Sans", system-ui, sans-serif; color: var(--ink); background: rgba(255,255,255,.04);
+    border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1.05rem; cursor: pointer; }
+  .tab.on { background: var(--ink); color: #1a0e1c; border-color: var(--ink); }
+
+  .main { display: grid; grid-template-columns: 1fr; max-width: 1150px; margin: 0 auto; padding: 0 1rem; align-items: center; }
+  .stage { position: relative; height: min(62vh, 640px); min-height: 360px; touch-action: pan-y; cursor: grab; }
+  .stage::before { content: ""; position: absolute; left: 50%; top: 55%; width: 70%; aspect-ratio: 1; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(255,170,210,.22), rgba(190,150,255,.08) 45%, transparent 70%); pointer-events: none; }
+  .stage:active { cursor: grabbing; }
+  #view { position: relative; width: 100%; height: 100%; display: block; }
+  .hint { position: absolute; left: 0; right: 0; bottom: .2rem; text-align: center; color: var(--soft); font-size: .78rem; pointer-events: none; transition: opacity 1s; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--soft); font-style: italic; }
+
+  .card { background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.025)); border: 1px solid var(--line);
+    border-radius: 24px; padding: 1.5rem 1.4rem 1.3rem; text-align: center; backdrop-filter: blur(10px); max-width: 520px; margin: .4rem auto 0; width: 100%; }
+  .card .meta { font-size: .72rem; letter-spacing: .26em; text-transform: uppercase; color: var(--soft); }
+  .card h2 { font-size: clamp(2rem, 6vw, 2.8rem); margin: .15rem 0 .1rem; line-height: 1.05; }
+  .card .meaning { color: var(--gold); font-size: .92rem; }
+  .card .meaning::before { content: "means: "; color: var(--soft); }
+  .card.garden .meaning::before { content: ""; }
+  .card .note { font-size: 1.12rem; line-height: 1.55; margin: 1rem 0 0; color: #f3dfe8; }
+  .card .q { margin: 1.1rem auto 0; padding-top: 1rem; border-top: 1px solid var(--line); max-width: 40ch; }
+  .card.garden .q { display: none; }
+  .card .quote { font-family: "Cormorant Garamond", Georgia, serif; font-style: italic; font-size: 1.25rem; line-height: 1.35; white-space: pre-line; }
+  .card .by { color: var(--soft); font-size: .82rem; margin-top: .35rem; }
+  .next { margin-top: 1rem; font-size: .82rem; color: var(--soft); }
+  .next b { color: var(--gold); font-weight: 500; font-variant-numeric: tabular-nums; }
+  @media (min-width: 900px) {
+    .main { grid-template-columns: 1.25fr 1fr; gap: 1.5rem; margin-top: .5rem; }
+    .stage { height: min(74vh, 720px); }
+    .card { text-align: left; margin: 0; }
+    .card .q { margin-left: 0; }
+  }
+
+  .diary { max-width: 1100px; margin: 3.2rem auto 0; padding: 0 1rem calc(3rem + env(safe-area-inset-bottom, 0px)); }
+  .diary h3 { text-align: center; font-size: 2rem; margin: 0; }
+  .diary .sub { text-align: center; color: var(--soft); margin: .3rem 0 1.3rem; font-size: .92rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: .85rem; }
+  .card-day { background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 18px; padding: .55rem .55rem .75rem;
+    cursor: pointer; text-align: center; color: inherit; font: inherit; transition: transform .25s, border-color .25s; }
+  .card-day:hover { transform: translateY(-3px); border-color: rgba(233,196,106,.5); }
+  .card-day.sel { border-color: var(--gold); }
+  .card-day .img { aspect-ratio: 5 / 6; border-radius: 12px; background: radial-gradient(circle at 50% 55%, rgba(255,170,210,.15), rgba(0,0,0,.2) 70%) center / cover no-repeat; }
+  .card-day .d { font-size: .74rem; color: var(--soft); margin-top: .5rem; }
+  .card-day .n { font-family: "Cormorant Garamond", Georgia, serif; font-style: italic; font-size: 1.15rem; margin-top: .1rem; }
+  .card-day.locked { cursor: default; opacity: .55; }
+  .card-day.locked .img { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+  .back { display: inline-block; margin-top: 2.2rem; color: var(--soft); text-decoration: none; font-size: .9rem; }
+  .back:hover { color: var(--ink); }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">a new one every day</div>
+  <h1 class="serif" id="title">Flower of the day</h1>
+  <div class="date" id="date"></div>
+  <div class="tabs">
+    <button class="tab on" id="tabOne">Today's flower</button>
+    <button class="tab" id="tabAll">The whole garden</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="stage" id="stage">
+    <canvas id="view"></canvas>
+    <div class="loading" id="loading">growing…</div>
+    <div class="hint" id="hint">drag to turn the glass box</div>
+  </div>
+  <div class="card" id="card">
+    <div class="meta" id="meta"></div>
+    <h2 class="serif" id="fname"></h2>
+    <div class="meaning" id="meaning"></div>
+    <p class="note" id="note"></p>
+    <div class="q"><div class="quote" id="quote"></div><div class="by" id="by"></div></div>
+    <div class="next" id="next"></div>
+  </div>
+</div>
+
+<section class="diary">
+  <h3 class="serif">The flower diary</h3>
+  <p class="sub">a different flower kept for every day</p>
+  <div class="grid" id="grid"></div>
+  <div class="center"><a class="back" href="./">← back to the flowers</a></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================
+   ✏️  EDIT HERE
+   ===================================================== */
+const START_DATE = "2026-11-07";   // day 1 of the diary (YYYY-MM-DD)
+
+// The first name is used most often; the rest pop up now and then.
+const NAMES = ["Mo", "Aditi", "sweetie", "buttercup", "kitten"];
+
+const SEED_WORD = "mo";            // change this to shuffle the flowers into a different order
+
+// Each day gets the next flower from this list (shuffled once), so no two days repeat
+// until every flower has had its turn. {name} becomes one of the names above.
+const FLOWERS = [
+  { name: "Pink Tulip", kind: "tulip", c: ["#d6336c", "#ff9cc0", "#fff0f6"],
+    meaning: "Elegance, and a happy kind of affection",
+    note: "You make the most ordinary day feel like the start of spring, {name}.",
+    quote: "My heart does a tiny happy dance every time your name lights up my phone.", by: "for my girl 🤍" },
+  { name: "Lavender Rose", kind: "rose", c: ["#6d4bd8", "#b9a3ff", "#f3eeff"],
+    meaning: "Enchantment at first sight",
+    note: "I still remember the first time I noticed how you laugh. Still my favourite sound.",
+    quote: "I'd choose you in every lifetime, in every universe, in every version of the story.", by: "for my girl 🤍" },
+  { name: "White Camellia", kind: "camellia", c: ["#eadbe6", "#ffffff", "#ffffff"], center: "#f2c14e",
+    meaning: "In the old language of flowers: you're adorable",
+    note: "According to flower law, you are officially adorable, {name}. Not my rules.",
+    quote: "You're my favourite hello and my hardest goodbye, {name}.", by: "for my girl 🤍" },
+  { name: "Purple Iris", kind: "iris", c: ["#3b0a6b", "#7b3fbf", "#c9a3ff"],
+    meaning: "Faith, hope and wisdom",
+    note: "You're wiser than you give yourself credit for. I'd trust your judgement anywhere.",
+    quote: "Holding your hand is my favourite place in the whole world.", by: "for my girl 🤍" },
+  { name: "Cherry Blossom", kind: "blossom", c: ["#f06595", "#ffc2d6", "#fff5f8"], center: "#ffd166",
+    meaning: "Gentle beauty that asks you to notice it",
+    note: "Some moments with you go by too fast. I try to notice every single one.",
+    quote: "Loving you feels like the easiest thing I've ever done.", by: "for my girl 🤍" },
+  { name: "Golden Sunflower", kind: "sunflower", c: ["#d97706", "#fbbf24", "#fff3b0"],
+    meaning: "Adoration",
+    note: "Sunflowers turn to face the light. Honestly, {name}, I get it now.",
+    quote: "You're my sunshine on cloudy days, and on sunny days too.", by: "for my girl 🤍" },
+  { name: "Pink Peony", kind: "peony", c: ["#c2255c", "#ff8fb8", "#ffe3ee"],
+    meaning: "A happy life",
+    note: "Everything just feels lighter when you're around.",
+    quote: "Whatever today brings, I'm so lucky I get to share it with you.", by: "for my girl 🤍" },
+  { name: "White Lily", kind: "lily", c: ["#d9f0c8", "#ffffff", "#ffffff"],
+    meaning: "Purity, and something a little heavenly",
+    note: "You have the kindest heart I know, {name}, and you don't even realise it.",
+    quote: "My girl, my favourite person, my safe place. All you, {name}.", by: "for my girl 🤍" },
+  { name: "Lilac Hydrangea", kind: "ball", c: ["#7b5cd6", "#c4b5fd", "#f5f3ff"],
+    meaning: "Gratitude for being understood",
+    note: "Thank you for understanding me, even on the days I don't make sense.",
+    quote: "You're the best thing that ever happened to my ordinary days.", by: "for my girl 🤍" },
+  { name: "Forget-me-not", kind: "umbel", c: ["#3b82f6", "#93c5fd", "#e0f2fe"], center: "#fde047",
+    meaning: "Don't forget me",
+    note: "No chance of that. You're on my mind most of the day, {name}.",
+    quote: "Wherever I go, my heart is already with you.", by: "for my girl 🤍" },
+  { name: "White Jasmine", kind: "star", c: ["#f3e8ee", "#ffffff", "#ffffff"], center: "#fff3b0", n: 5,
+    meaning: "Sweetness and warmth",
+    note: "You're so easy to be around, {name}. That's rarer than people think.",
+    quote: "I fall for you a little more every single day, and I'm not planning to stop.", by: "for my girl 🤍" },
+  { name: "Pink Carnation", kind: "carnation", c: ["#d6336c", "#ff8fab", "#ffe5ec"],
+    meaning: "I'll never forget you",
+    note: "Every small thing you've told me, I've kept somewhere safe.",
+    quote: "You're my favourite notification, my favourite thought, my favourite everything.", by: "for my girl 🤍" },
+  { name: "Lilac", kind: "spike", c: ["#8b5cf6", "#c4b5fd", "#f3e8ff"], spike: "lilac",
+    meaning: "The joy of being young at heart",
+    note: "With you I laugh like a kid again, {name}.",
+    quote: "Everything is better with you next to me, even the quiet parts.", by: "for my girl 🤍" },
+  { name: "White Daisy", kind: "daisy", c: ["#f1f1f1", "#ffffff", "#ffffff"], center: "#fbbf24",
+    meaning: "Loyalty, and \u201cI'll never tell\u201d",
+    note: "Your secrets are safe with me. All of them. Even the midnight snack ones.",
+    quote: "Hey you, yes you. I'm completely and totally yours, {name}.", by: "for my girl 🤍" },
+  { name: "Pink Rose", kind: "rose", c: ["#d6336c", "#ff9eb8", "#fff0f5"],
+    meaning: "Grace, happiness and gentleness",
+    note: "You're graceful even on the days you think you're being clumsy, {name}.",
+    quote: "You're the prettiest part of every single day.", by: "for my girl 🤍" },
+  { name: "Pink Lotus", kind: "lotus", c: ["#e64980", "#ffa8c5", "#fff0f6"],
+    meaning: "New beginnings, rising above the mud",
+    note: "You always find a way through the messy days. I admire that so much.",
+    quote: "I never knew a heart could feel this full until you.", by: "for my girl 🤍" },
+  { name: "Purple Orchid", kind: "orchid", c: ["#86198f", "#e879f9", "#fdf4ff"],
+    meaning: "Rare and admired",
+    note: "There's only one of you, and somehow I got lucky.",
+    quote: "Out of everyone in this big world, I'm so glad it's you.", by: "for my girl 🤍" },
+  { name: "Red Camellia", kind: "camellia", c: ["#7f1d1d", "#dc2626", "#fb7185"], center: "#fde047",
+    meaning: "You're a flame in my heart",
+    note: "You light up rooms without even trying.",
+    quote: "You're the spark in my every day, {name}, and I'm never letting go.", by: "for my girl 🤍" },
+  { name: "White Magnolia", kind: "magnolia", c: ["#f9c6dc", "#ffffff", "#ffffff"],
+    meaning: "Dignity, and a fondness for nature",
+    note: "You notice the little things: the moon, the sky, the small kindnesses. I notice you.",
+    quote: "I could look at you for hours and still not have enough.", by: "for my girl 🤍" },
+  { name: "Pink Hibiscus", kind: "hibiscus", c: ["#9d174d", "#f472b6", "#fce7f3"],
+    meaning: "Delicate beauty",
+    note: "You're beautiful in a way photos never quite manage to catch, {name}.",
+    quote: "Your smile is my favourite place to get lost.", by: "for my girl 🤍" },
+  { name: "Calla Lily", kind: "calla", c: ["#f0d9e6", "#ffffff", "#ffffff"],
+    meaning: "Magnificent beauty",
+    note: "Honestly, how are you this pretty and this funny at the same time?",
+    quote: "Thank you for being my person. I adore you, {name}.", by: "for my girl 🤍" },
+  { name: "Sweet Pea", kind: "sweetpea", c: ["#c084fc", "#f9a8d4", "#fff1f7"],
+    meaning: "Thank you for a lovely time",
+    note: "Every moment with you is a good one, even the boring errands.",
+    quote: "Every little moment with you becomes my favourite memory.", by: "for my girl 🤍" },
+  { name: "Purple Anemone", kind: "anemone", c: ["#5b21b6", "#8b5cf6", "#ddd6fe"],
+    meaning: "Anticipation",
+    note: "I'm always looking forward to the next time I see you, {name}.",
+    quote: "I'm counting down to the next time I get to hold you.", by: "for my girl 🤍" },
+  { name: "White Gardenia", kind: "camellia", c: ["#efe6d8", "#fffdf7", "#ffffff"], center: "#f6e7b0",
+    meaning: "You're lovely",
+    note: "You're lovely. That's it. That's the whole message.",
+    quote: "You're the sweetest thing in my life, and I'm so lucky you're mine.", by: "for my girl 🤍" },
+  { name: "Pink Dahlia", kind: "dahlia", c: ["#be185d", "#f472b6", "#fde2ef"],
+    meaning: "Good taste",
+    note: "You have excellent taste. Exhibit A: you picked me. (Kidding. Mostly.)",
+    quote: "Even on my worst days, thinking of you makes everything okay.", by: "for my girl 🤍" },
+  { name: "Lavender", kind: "spike", c: ["#5b3cc4", "#8b5cf6", "#c4b5fd"], spike: "lavender",
+    meaning: "Calm and serenity",
+    note: "You're my calm on loud days, {name}.",
+    quote: "Your hug is my favourite home, {name}.", by: "for my girl 🤍" },
+  { name: "White Hyacinth", kind: "spike", c: ["#e9e3f5", "#ffffff", "#ffffff"], spike: "hyacinth",
+    meaning: "Loveliness",
+    note: "The old flower books say this one means loveliness. I'd just say: you.",
+    quote: "Come here. I just wanted to tell you that you're my whole heart.", by: "for my girl 🤍" },
+  { name: "Yellow Tulip", kind: "tulip", c: ["#d97706", "#fcd34d", "#fff7cc"],
+    meaning: "There's sunshine in your smile",
+    note: "Your smile genuinely changes my whole day.",
+    quote: "You make my whole world warmer just by being in it.", by: "for my girl 🤍" },
+  { name: "Purple Aster", kind: "aster", c: ["#6d28d9", "#a78bfa", "#ede9fe"], center: "#facc15",
+    meaning: "Daintiness, with a strong heart",
+    note: "Small gestures from you feel huge to me.",
+    quote: "I promise to keep choosing you, today and every day after.", by: "for my girl 🤍" },
+  { name: "Baby's Breath", kind: "umbel", c: ["#f1f5f9", "#ffffff", "#ffffff"], center: "#fef3c7", tiny: true,
+    meaning: "Something everlasting",
+    note: "Some things you just know will last. This feels like one of them.",
+    quote: "You're my forever kind of girl.", by: "for my girl 🤍" },
+  { name: "Pink Cosmos", kind: "cosmos", c: ["#db2777", "#f9a8d4", "#fdf2f8"], center: "#facc15",
+    meaning: "Harmony",
+    note: "Things just make more sense with you around, {name}.",
+    quote: "I'm so proud to call you mine, {name}.", by: "for my girl 🤍" },
+  { name: "White Rose", kind: "rose", c: ["#e9e0e6", "#ffffff", "#ffffff"],
+    meaning: "A fresh start",
+    note: "Every day with you feels like a fresh start, in the best way.",
+    quote: "You're my today, my tomorrow and all the days after that, {name}.", by: "for my girl 🤍" },
+  { name: "Purple Pansy", kind: "pansy", c: ["#2e0854", "#7c3aed", "#ddd6fe"], center: "#fde047",
+    meaning: "You're in my thoughts",
+    note: "Guess who I was thinking about? (It's you, {name}. It's always you.)",
+    quote: "Someone like you doesn't come around twice. I'm holding on tight.", by: "for my girl 🤍" },
+  { name: "Stargazer Lily", kind: "lily", c: ["#be185d", "#f472b6", "#fff1f7"],
+    meaning: "Big dreams",
+    note: "Dream as big as you like. I'll be the one cheering loudest.",
+    quote: "Every love song suddenly makes sense because of you.", by: "for my girl 🤍" },
+  { name: "Pink Poppy", kind: "poppy", c: ["#be123c", "#fb7185", "#ffe4e6"],
+    meaning: "Comfort",
+    note: "If today is a hard one, I hope this little flower helps a bit.",
+    quote: "Missing you is my least favourite hobby. See you soon, {name}?", by: "for my girl 🤍" },
+  { name: "Pink Zinnia", kind: "zinnia", c: ["#be185d", "#f472b6", "#fbcfe8"], center: "#facc15",
+    meaning: "Lasting affection",
+    note: "Some feelings just keep growing. This is one of them.",
+    quote: "You turned my life into my favourite story.", by: "for my girl 🤍" },
+  { name: "Purple Clematis", kind: "star", c: ["#4c1d95", "#8b5cf6", "#c4b5fd"], center: "#fef3c7", n: 6,
+    meaning: "Beauty of the mind",
+    note: "The way your mind works is one of my favourite things to watch.",
+    quote: "I'm so grateful the universe sent you my way.", by: "for my girl 🤍" },
+  { name: "Edelweiss", kind: "star", c: ["#d9dde3", "#f8fafc", "#ffffff"], center: "#fde68a", n: 10,
+    meaning: "Courage and devotion",
+    note: "You're braver than you think, {name}. I see it all the time.",
+    quote: "My heart found its home the day it found you.", by: "for my girl 🤍" },
+  { name: "White Chrysanthemum", kind: "mum", c: ["#e7e0d0", "#ffffff", "#ffffff"],
+    meaning: "Truth",
+    note: "I can be completely honest with you. That means more than I can say.",
+    quote: "You're everything I never knew I was wishing for.", by: "for my girl 🤍" },
+  { name: "Moonflower", kind: "trumpet", c: ["#e8f0e0", "#ffffff", "#ffffff"],
+    meaning: "Blooms at night, under the moon",
+    note: "Like that night under the moon with you. I think about it more than you'd guess.",
+    quote: "Under the moon or in the sunshine, I'll always want to be with you, {name}.", by: "for my girl 🤍" },
+  { name: "Morning Glory", kind: "trumpet", c: ["#f8fafc", "#a78bfa", "#6d28d9"],
+    meaning: "Affection, fresh every morning",
+    note: "Good morning, {name}. I hope this is the first thing that makes you smile today.",
+    quote: "Waking up to the thought of you is the best part of my morning.", by: "for my girl 🤍" },
+  { name: "Pink Camellia", kind: "camellia", c: ["#db2777", "#f9a8d4", "#fff1f7"], center: "#fde047",
+    meaning: "Longing for you",
+    note: "Even when we've just said bye, I'm already waiting for the next time.",
+    quote: "I love you, {name}. That's the whole message.", by: "for my girl 🤍" },
+];
+/* ===================================================== */
+
+(() => {
+  if (!window.THREE) { document.getElementById('loading').textContent = 'Could not load. Check your internet and refresh.'; return; }
+
+  /* ---------- seeded randomness ---------- */
+  function hashStr(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+    h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  }
+  function rngFor(key) {
+    let a = hashStr(SEED_WORD + '|' + key);
+    const r = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    r.range = (x, y) => x + r() * (y - x);
+    r.pick = arr => arr[Math.floor(r() * arr.length)];
+    r.int = (x, y) => Math.floor(x + r() * (y - x + 1));
+    return r;
+  }
+  const pickName = r => r() < 0.55 ? NAMES[0] : r.pick(NAMES);
+
+  /* ---------- dates ---------- */
+  const pad = n => String(n).padStart(2, '0');
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const dayNumber = d => Math.round((d - fromKey(START_DATE)) / 86400000) + 1;
+  const longDate = d => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const shortDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  function allDays() {
+    const out = [], t = today();
+    let d = fromKey(START_DATE);
+    if (d > t) d = t;
+    for (; d <= t; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) out.push(keyOf(d));
+    return out;
+  }
+
+  /* ---------- which flower belongs to which day (no repeats within a round) ---------- */
+  const orders = {};
+  function orderFor(cycle) {
+    if (orders[cycle]) return orders[cycle];
+    const r = rngFor('order' + cycle), a = FLOWERS.map((_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    if (cycle > 0) { const prev = orderFor(cycle - 1); if (a[0] === prev[prev.length - 1]) [a[0], a[1]] = [a[1], a[0]]; }
+    return (orders[cycle] = a);
+  }
+  function describe(key) {
+    const i = Math.max(0, dayNumber(fromKey(key)) - 1), L = FLOWERS.length;
+    const f = FLOWERS[orderFor(Math.floor(i / L))[i % L]];
+    const r = rngFor(key + ':name');
+    return { key, ...f, note: f.note.replace(/\{name\}/g, pickName(r)), quote: f.quote.replace(/\{name\}/g, pickName(r)) };
+  }
+
+  /* ================= geometry ================= */
+  const col = h => new THREE.Color(h);
+  function petalGeo(o, r, SU = 16, SV = 10) {
+    // o: len, wid, cup, bend, point, notch, ruffle, colors [base, mid, tip]
+    const pos = [], colr = [], idx = [];
+    const cb = col(o.colors[0]), cm = col(o.colors[1]), ct = col(o.colors[2]), tmp = new THREE.Color();
+    const tipK = o.point ? 1 : 0.86, wob = r ? r.range(-0.04, 0.04) : 0, ph = r ? r.range(0, 6) : 0;
+    for (let i = 0; i <= SU; i++) {
+      const u = i / SU;
+      const w = o.wid * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.72) * tipK), 0.85) + 0.003;
+      for (let j = 0; j <= SV; j++) {
+        const v = j / SV * 2 - 1;
+        let x = v * w + wob * u * u;
+        let z = u * o.len;
+        let y = (o.cup || 0) * v * v * w + (o.bend || 0) * u * u * o.len;
+        if (o.notch) z -= o.notch * o.len * 0.14 * (1 - v * v) * Math.max(0, (u - 0.78) / 0.22);
+        if (o.ruffle) y += o.ruffle * w * Math.sin(u * 16 + v * 4 + ph) * Math.pow(Math.abs(v), 1.5) * u;
+        pos.push(x, y, z);
+        if (u < 0.5) tmp.copy(cb).lerp(cm, u / 0.5); else tmp.copy(cm).lerp(ct, (u - 0.5) / 0.5);
+        tmp.lerp(cb, 0.15 * Math.abs(v) * (1 - u));
+        colr.push(tmp.r, tmp.g, tmp.b);
+      }
+    }
+    for (let i = 0; i < SU; i++) for (let j = 0; j < SV; j++) {
+      const a = i * (SV + 1) + j, b = a + SV + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+  const petalMat = () => new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.5, metalness: 0, emissive: 0x150812 });
+  const std = (c, rough = 0.6) => new THREE.MeshStandardMaterial({ color: c, roughness: rough });
+
+  function ring(head, r, n, spec, offset = 0, jitter = 0.06) {
+    for (let i = 0; i < n; i++) {
+      const pivot = new THREE.Group();
+      pivot.rotation.y = offset + (i / n) * Math.PI * 2 + r.range(-0.05, 0.05);
+      const m = new THREE.Mesh(petalGeo({ ...spec, len: spec.len * r.range(0.94, 1.05) }, r), petalMat());
+      m.rotation.x = -(spec.tilt + r.range(-jitter, jitter));
+      m.position.z = spec.r0 || 0; m.position.y = spec.y0 || 0;
+      pivot.add(m); head.add(pivot);
+    }
+  }
+  function dome(head, rad, color, squash = 0.5, y = 0.02) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(rad, 24, 14), std(color, 0.85));
+    m.scale.y = squash; m.position.y = y; head.add(m); return m;
+  }
+  function stamens(head, n, len, stalk, tip, spread = 0.35, tipSize = 0.025) {
+    const sm = std(stalk), tm = std(tip, 0.7), sg = new THREE.CylinderGeometry(0.006, 0.008, len, 5), tg = new THREE.SphereGeometry(tipSize, 8, 6);
+    for (let i = 0; i < n; i++) {
+      const p = new THREE.Group(); p.rotation.y = i * 2.39996;
+      const tilt = spread * (0.5 + 0.5 * ((i * 7) % n) / n);
+      const s = new THREE.Mesh(sg, sm); s.position.set(0, len / 2 * Math.cos(tilt), len / 2 * Math.sin(tilt)); s.rotation.x = tilt; p.add(s);
+      const t = new THREE.Mesh(tg, tm); t.position.set(0, len * Math.cos(tilt), len * Math.sin(tilt)); p.add(t);
+      head.add(p);
+    }
+  }
+  function seedDiscTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    const g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, '#6b3a12'); g.addColorStop(0.5, '#4a2a0e'); g.addColorStop(1, '#1f1005');
+    x.fillStyle = g; x.beginPath(); x.arc(128, 128, 128, 0, 6.2832); x.fill();
+    for (let i = 0; i < 520; i++) {
+      const rr = 122 * Math.sqrt(i / 520), a = i * 2.39996;
+      x.fillStyle = i % 3 ? '#7a4a1a' : '#140a03'; x.beginPath(); x.arc(128 + Math.cos(a) * rr, 128 + Math.sin(a) * rr, 3.2, 0, 6.2832); x.fill();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+  // little florets for clusters (hydrangea, lilac, baby's breath...)
+  function floretMaker(f, r, size, nPet = 4) {
+    const geo = petalGeo({ len: size, wid: size * 0.75, cup: 0.25, bend: 0.05, colors: f.c }, null, 6, 4);
+    const mat = petalMat(), cm = std(f.center || '#fff3b0'), cg = new THREE.SphereGeometry(size * 0.18, 6, 4);
+    return () => {
+      const g = new THREE.Group();
+      for (let i = 0; i < nPet; i++) { const p = new THREE.Group(); p.rotation.y = i / nPet * 6.2832; const m = new THREE.Mesh(geo, mat); m.rotation.x = -0.25; p.add(m); g.add(p); }
+      g.add(new THREE.Mesh(cg, cm));
+      return g;
+    };
+  }
+  const UP = new THREE.Vector3(0, 1, 0);
+  function orient(obj, dir) { obj.quaternion.setFromUnitVectors(UP, dir.clone().normalize()); }
+
+  function buildHead(f, r) {
+    const head = new THREE.Group(), c = f.c;
+    const P = o => ({ colors: c, cup: 0.2, bend: 0, point: 0, ...o });
+    let face = r.range(-0.1, 0.18), extra = 0;   // face: tilt toward viewer, extra: spike height
+    switch (f.kind) {
+      case 'tulip': {
+        const pt = r() < 0.5 ? 1 : 0;
+        ring(head, r, 3, P({ len: 0.95, wid: 0.62, cup: 0.5, bend: 0.06, tilt: 1.22, point: pt, r0: 0.04 }), 0);
+        ring(head, r, 3, P({ len: 0.9, wid: 0.58, cup: 0.5, bend: 0.05, tilt: 1.32, point: pt, r0: 0.02 }), Math.PI / 3);
+        break;
+      }
+      case 'rose': {
+        const n = r.int(26, 34);
+        for (let i = 0; i < n; i++) {
+          const k = i / (n - 1), pivot = new THREE.Group(); pivot.rotation.y = i * 2.39996;
+          const m = new THREE.Mesh(petalGeo(P({ len: 0.26 + 0.56 * k, wid: 0.3 + 0.42 * k, cup: 0.62, bend: k > 0.75 ? -0.2 : 0.06, ruffle: 0.04 }), r), petalMat());
+          m.rotation.x = -(1.52 - 0.92 * k); m.position.z = 0.02 + 0.07 * k; m.position.y = -0.04 * k;
+          pivot.add(m); head.add(pivot);
+        }
+        const bud = dome(head, 0.1, c[0], 1.6, 0.12); break;
+      }
+      case 'camellia': {
+        [[5, 0.26, 0.3, 1.35], [7, 0.4, 0.42, 1.0], [8, 0.55, 0.5, 0.6], [9, 0.66, 0.56, 0.22]].forEach(([n, len, wid, tilt], i) =>
+          ring(head, r, n, P({ len, wid, cup: 0.38, bend: 0.04, tilt, r0: 0.02 + i * 0.03 }), i * 0.5, 0.08));
+        if (f.center && r() < 0.5) stamens(head, 14, 0.18, '#fff3b0', f.center, 0.4, 0.02);
+        break;
+      }
+      case 'peony': {
+        [[6, 0.42, 0.4, 1.45], [8, 0.55, 0.48, 1.2], [10, 0.68, 0.55, 0.92], [12, 0.8, 0.6, 0.6], [12, 0.85, 0.62, 0.3]].forEach(([n, len, wid, tilt], i) =>
+          ring(head, r, n, P({ len, wid, cup: 0.62, bend: 0.08, tilt, ruffle: 0.12, r0: 0.03 + i * 0.03 }), i * 0.4, 0.1));
+        break;
+      }
+      case 'carnation': {
+        [[10, 0.32, 0.32, 1.35], [12, 0.45, 0.4, 1.05], [14, 0.55, 0.45, 0.7], [14, 0.62, 0.48, 0.35]].forEach(([n, len, wid, tilt], i) =>
+          ring(head, r, n, P({ len, wid, cup: 0.3, bend: 0.05, tilt, ruffle: 0.45, r0: 0.02 + i * 0.02 }), i * 0.3, 0.12));
+        break;
+      }
+      case 'dahlia': case 'mum': case 'zinnia': {
+        const mum = f.kind === 'mum', zin = f.kind === 'zinnia', rings = mum ? 9 : 7;
+        for (let i = 0; i < rings; i++) {
+          const k = i / (rings - 1);
+          ring(head, r, Math.round(8 + 10 * k), P({
+            len: (zin ? 0.25 : 0.2) + 0.55 * k, wid: mum ? 0.07 + 0.06 * k : zin ? 0.14 + 0.1 * k : 0.1 + 0.14 * k,
+            cup: zin ? 0.25 : 0.75, bend: mum ? 0.12 : -0.04, point: zin ? 0 : 1,
+            tilt: zin ? 0.85 - 0.85 * k : 1.5 - (mum ? 1.15 : 1.4) * k, r0: 0.02
+          }), i * 0.37, 0.05);
+        }
+        if (zin) dome(head, 0.1, f.center || '#facc15', 0.7, 0.08);
+        break;
+      }
+      case 'daisy': case 'aster': case 'cosmos': {
+        const ast = f.kind === 'aster', cos = f.kind === 'cosmos';
+        const n = cos ? 8 : ast ? r.int(30, 38) : r.int(18, 24);
+        ring(head, r, n, P({ len: cos ? 0.72 : ast ? 0.62 : 0.8, wid: cos ? 0.36 : ast ? 0.07 : 0.16, cup: 0.12, bend: r.range(-0.1, 0.04),
+          tilt: r.range(0.1, 0.3), notch: cos ? 0.8 : 0, r0: cos ? 0.08 : 0.13 }), 0, 0.07);
+        if (!cos && r() < 0.6) ring(head, r, n, P({ len: ast ? 0.5 : 0.68, wid: ast ? 0.06 : 0.14, cup: 0.1, tilt: 0.45, r0: 0.11 }), Math.PI / n, 0.08);
+        dome(head, cos ? 0.12 : 0.2, f.center || '#fbbf24', 0.45, 0.03);
+        if (cos) stamens(head, 18, 0.1, '#facc15', '#f59e0b', 0.6, 0.018);
+        face = r.range(0.45, 0.8); break;
+      }
+      case 'blossom': case 'sweetpea': {
+        const sp = f.kind === 'sweetpea';
+        ring(head, r, 5, P({ len: sp ? 0.62 : 0.55, wid: sp ? 0.6 : 0.46, cup: 0.32, bend: 0.06, tilt: sp ? 0.8 : 0.45, notch: sp ? 0 : 0.9, ruffle: sp ? 0.3 : 0.05, r0: 0.03 }), 0, 0.1);
+        if (!sp) stamens(head, 22, 0.22, '#ffd6e5', f.center || '#ffd166', 0.55, 0.02);
+        face = r.range(0.4, 0.75); break;
+      }
+      case 'star': {
+        const n = f.n || 5, ew = n >= 10;
+        ring(head, r, n, P({ len: ew ? 0.42 : 0.62, wid: ew ? 0.16 : n === 6 ? 0.3 : 0.24, cup: ew ? 0.3 : 0.12, bend: -0.05, tilt: 0.15, point: 1, r0: ew ? 0.12 : 0.03 }), 0, 0.06);
+        if (ew) { for (let i = 0; i < 9; i++) { const m = dome(new THREE.Group(), 0.05, f.center, 0.9); const a = i * 2.39996, rr = 0.09 * Math.sqrt(i / 9); m.position.set(Math.cos(a) * rr, 0.04, Math.sin(a) * rr); head.add(m); } }
+        else { dome(head, 0.06, f.center || '#fff3b0', 0.8); stamens(head, n === 6 ? 14 : 5, 0.16, '#fef3c7', '#fde68a', 0.25, 0.02); }
+        face = r.range(0.4, 0.8); break;
+      }
+      case 'hibiscus': {
+        ring(head, r, 5, P({ len: 0.9, wid: 0.78, cup: 0.25, bend: 0.1, tilt: 0.55, ruffle: 0.15, r0: 0.02 }), 0, 0.08);
+        const col_ = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.85, 8), std('#fbcfe8'));
+        col_.position.set(0, 0.42, 0.12); col_.rotation.x = 0.28; head.add(col_);
+        for (let i = 0; i < 18; i++) { const d = dome(new THREE.Group(), 0.022, '#fde047', 1); const a = i * 2.4, h = 0.55 + 0.25 * (i / 18); d.position.set(Math.cos(a) * 0.05, h, 0.12 + h * 0.28 + Math.sin(a) * 0.05); head.add(d); }
+        for (let i = 0; i < 5; i++) { const d = dome(new THREE.Group(), 0.03, '#be123c', 1); d.position.set(Math.cos(i * 1.26) * 0.04, 0.86, 0.36 + Math.sin(i * 1.26) * 0.04); head.add(d); }
+        face = r.range(0.3, 0.6); break;
+      }
+      case 'anemone': case 'poppy': {
+        const pop = f.kind === 'poppy';
+        ring(head, r, pop ? 4 : 6, P({ len: pop ? 0.72 : 0.6, wid: pop ? 0.82 : 0.5, cup: pop ? 0.55 : 0.2, bend: 0.06, tilt: pop ? 0.95 : 0.3, ruffle: pop ? 0.22 : 0.04, r0: 0.03 }), 0, 0.08);
+        dome(head, pop ? 0.12 : 0.15, pop ? '#4d7c0f' : '#1e1b4b', pop ? 1.0 : 0.7, pop ? 0.1 : 0.04);
+        stamens(head, 30, pop ? 0.18 : 0.14, '#1e1b4b', '#111827', 0.9, 0.018);
+        face = pop ? r.range(0, 0.25) : r.range(0.4, 0.7); break;
+      }
+      case 'pansy': {
+        ring(head, r, 5, P({ len: 0.52, wid: 0.6, cup: 0.15, bend: 0.04, tilt: 0.08, ruffle: 0.08, r0: 0.02 }), 0, 0.05);
+        dome(head, 0.06, f.center || '#fde047', 0.8);
+        face = 1.15; break;
+      }
+      case 'trumpet': {
+        ring(head, r, 5, P({ len: 0.7, wid: 0.62, cup: 0.12, bend: 0.08, tilt: 0.5, r0: 0.18 }), 0, 0.04);
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.04, 0.45, 24, 1, true), new THREE.MeshStandardMaterial({ color: c[0], side: THREE.DoubleSide, roughness: 0.6 }));
+        tube.position.y = 0.0; head.add(tube);
+        dome(head, 0.035, '#fef9c3', 1, 0.05);
+        face = r.range(0.7, 1.0); break;
+      }
+      case 'lotus': case 'magnolia': {
+        const mag = f.kind === 'magnolia';
+        (mag ? [[3, 0.75, 1.3], [3, 0.85, 1.05], [3, 0.95, 0.7]] : [[8, 0.62, 1.3], [8, 0.78, 0.95], [8, 0.9, 0.55]]).forEach(([n, len, tilt], i) =>
+          ring(head, r, n, P({ len, wid: mag ? 0.45 : 0.32, cup: mag ? 0.5 : 0.4, bend: 0.14, tilt, point: mag ? 0 : 1, r0: 0.06 }), i * Math.PI / (mag ? 3 : 8), 0.05));
+        const pod = new THREE.Mesh(mag ? new THREE.ConeGeometry(0.08, 0.35, 12) : new THREE.CylinderGeometry(0.16, 0.12, 0.14, 20), std(mag ? '#a3b18a' : '#e7c84a', 0.7));
+        pod.position.y = mag ? 0.2 : 0.1; head.add(pod); break;
+      }
+      case 'lily': {
+        ring(head, r, 3, P({ len: 1.1, wid: 0.34, cup: 0.18, bend: -0.38, tilt: 0.95, point: 1, r0: 0.03 }), 0);
+        ring(head, r, 3, P({ len: 1.05, wid: 0.3, cup: 0.18, bend: -0.34, tilt: 1.0, point: 1, r0: 0.03 }), Math.PI / 3);
+        stamens(head, 6, 0.62, '#d9f2c4', '#c2410c', 0.3, 0.04);
+        face = r.range(0.25, 0.5); break;
+      }
+      case 'iris': {
+        ring(head, r, 3, P({ len: 0.8, wid: 0.4, cup: 0.55, bend: 0.12, tilt: 1.35, r0: 0.03, colors: [c[1], c[2], c[2]] }), 0, 0.05);
+        ring(head, r, 3, P({ len: 0.95, wid: 0.44, cup: 0.22, bend: -0.6, tilt: 0.35, r0: 0.04, colors: ['#fde047', c[1], c[0]] }), Math.PI / 3, 0.05);
+        break;
+      }
+      case 'orchid': {
+        const flat = (ang, o) => { const p = new THREE.Group(); p.rotation.y = ang; const m = new THREE.Mesh(petalGeo(P(o), r), petalMat()); m.rotation.x = -(o.tilt || 0); p.add(m); head.add(p); };
+        [Math.PI, Math.PI + 2.2, Math.PI - 2.2].forEach(a => flat(a, { len: 0.62, wid: 0.24, cup: 0.15, point: 1, tilt: 0.05 }));
+        [Math.PI + 1.1, Math.PI - 1.1].forEach(a => flat(a, { len: 0.58, wid: 0.62, cup: 0.12, tilt: 0.12 }));
+        flat(0, { len: 0.36, wid: 0.3, cup: 0.9, bend: 0.25, tilt: 0.45, colors: [c[0], c[0], c[1]] });
+        dome(head, 0.05, '#fef3c7', 1, 0.05);
+        face = 1.2; break;
+      }
+      case 'calla': {
+        const m = new THREE.Mesh(petalGeo(P({ len: 1.05, wid: 0.62, cup: 1.25, bend: 0.3, point: 1 }), r, 20, 14), petalMat());
+        m.rotation.x = -1.15; m.position.z = -0.08; head.add(m);
+        const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.55, 10), std('#facc15', 0.8));
+        sp.position.set(0, 0.28, 0.05); sp.rotation.x = 0.12; head.add(sp);
+        face = r.range(0.1, 0.3); break;
+      }
+      case 'sunflower': {
+        const n = r.int(22, 28);
+        ring(head, r, n, P({ len: 0.72, wid: 0.18, cup: 0.12, bend: -0.06, tilt: 0.12, point: 1, r0: 0.32 }), 0, 0.05);
+        ring(head, r, n, P({ len: 0.62, wid: 0.17, cup: 0.12, bend: 0, tilt: 0.3, point: 1, r0: 0.3 }), Math.PI / n, 0.05);
+        const back = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.1, 32), std('#2f6b3d', 0.8)); back.position.y = -0.04; head.add(back);
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(0.42, 48), new THREE.MeshStandardMaterial({ map: seedDiscTexture(), roughness: 0.9 }));
+        disc.rotation.x = -Math.PI / 2; disc.position.y = 0.02; head.add(disc);
+        face = 1.05; break;
+      }
+      case 'ball': {
+        const make = floretMaker(f, r, 0.11, 4), R = 0.42;
+        for (let i = 0; i < 70; i++) {
+          const yv = 1 - (i / 69) * 1.5, rr = Math.sqrt(Math.max(0, 1 - yv * yv)), a = i * 2.39996;
+          const dir = new THREE.Vector3(Math.cos(a) * rr, yv, Math.sin(a) * rr);
+          const fl = make(); fl.position.copy(dir).multiplyScalar(R).add(new THREE.Vector3(0, R * 0.8, 0)); orient(fl, dir); head.add(fl);
+        }
+        dome(head, R * 0.92, '#7c6aa8', 1, R * 0.8); break;
+      }
+      case 'umbel': {
+        const tiny = f.tiny, make = floretMaker(f, r, tiny ? 0.05 : 0.07, 5), stalk = std('#4a8f5c');
+        const n = tiny ? 90 : 45, R = tiny ? 0.55 : 0.38;
+        for (let i = 0; i < n; i++) {
+          const k = i / n, a = i * 2.39996, rr = R * Math.sqrt(k), y = 0.25 + (R - rr) * 0.5 + r.range(-0.04, 0.04);
+          const fl = make(); fl.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
+          orient(fl, new THREE.Vector3(Math.cos(a) * k * 0.8, 1, Math.sin(a) * k * 0.8)); head.add(fl);
+          if (i % 3 === 0) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, y, 4), stalk); s.position.set(fl.position.x / 2, y / 2, fl.position.z / 2); s.lookAt(fl.position.x, y, fl.position.z); s.rotateX(Math.PI / 2); head.add(s); }
+        }
+        break;
+      }
+      case 'spike': {
+        const kind = f.spike, L = kind === 'lavender' ? 0.9 : kind === 'lilac' ? 0.8 : 0.7;
+        const make = floretMaker(f, r, kind === 'lavender' ? 0.05 : kind === 'lilac' ? 0.075 : 0.1, kind === 'hyacinth' ? 6 : 4);
+        const n = kind === 'lavender' ? 70 : kind === 'lilac' ? 120 : 60;
+        for (let i = 0; i < n; i++) {
+          const k = i / n, a = i * 2.39996, y = k * L;
+          const rad = kind === 'lavender' ? 0.06 * (1 - k * 0.5) : kind === 'lilac' ? 0.28 * Math.sin(Math.PI * (0.15 + 0.85 * (1 - k)) ) * (1 - k * 0.6) + 0.05 : 0.15 * (1 - k * 0.4);
+          const dir = new THREE.Vector3(Math.cos(a), 0.45, Math.sin(a));
+          const fl = make(); fl.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad); orient(fl, dir); head.add(fl);
+        }
+        const core = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.025, L, 6), std('#4a8f5c')); core.position.y = L / 2; head.add(core);
+        extra = L; face = 0; break;
+      }
+    }
+    head.userData.face = face; head.userData.extra = extra;
+    return head;
+  }
+
+  function buildFlower(f, key) {
+    const r = rngFor(key + ':shape'), flower = new THREE.Group();
+    const big = f.kind === 'sunflower', spike = f.kind === 'spike';
+    const headY = spike ? r.range(1.25, 1.45) : big ? 2.0 : r.range(1.7, 1.95);
+    const top = new THREE.Vector3(r.range(-0.12, 0.12), headY, r.range(-0.08, 0.08));
+    const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(r.range(-0.15, 0.15), headY * 0.45, r.range(-0.1, 0.1)), top]);
+    const stemMat = std('#2f7a46', 0.65);
+    flower.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, big ? 0.045 : 0.028, 8, false), stemMat));
+    const leafCols = ['#173f25', '#2f7a46', '#58b073'], longLeaf = ['tulip', 'iris', 'spike', 'calla', 'lily'].includes(f.kind);
+    const nLeaves = longLeaf ? 2 : r.int(1, 3);
+    for (let i = 0; i < nLeaves; i++) {
+      const t = 0.12 + i * 0.22 + r.range(0, 0.08), p = curve.getPoint(t);
+      const pivot = new THREE.Group(); pivot.position.copy(p); pivot.rotation.y = i * 2.4 + r.range(0, 1);
+      const m = new THREE.Mesh(petalGeo({ len: longLeaf ? 1.0 : 0.72, wid: longLeaf ? 0.16 : 0.2, cup: 0.3, bend: longLeaf ? 0.12 : -0.2, point: 1, colors: leafCols }, r),
+        new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.55 }));
+      m.rotation.x = -(longLeaf ? 1.15 : r.range(0.35, 0.7)); pivot.add(m); flower.add(pivot);
+    }
+    if (!spike) {
+      // sepals cupping the flower
+      for (let i = 0; i < 5; i++) {
+        const p = new THREE.Group(); p.position.copy(top); p.rotation.y = i / 5 * 6.2832;
+        const m = new THREE.Mesh(petalGeo({ len: 0.16, wid: 0.07, cup: 0.2, point: 1, colors: ['#2f7a46', '#3f8f5a', '#5cbf74'] }, r, 6, 4), petalMat());
+        m.rotation.x = 0.5; p.add(m); flower.add(p);
+      }
+    }
+    const head = buildHead(f, r); head.position.copy(top);
+    head.rotation.set(head.userData.face, r.range(0, 6.28), r.range(-0.08, 0.08));
+    flower.add(head);
+    flower.userData.height = headY + 1 + head.userData.extra;
+    return flower;
+  }
+
+  /* ---------- the glass box ---------- */
+  function buildCase(w, h, d) {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: '#2b1830', roughness: 0.4, metalness: 0.15 });
+    const gold = new THREE.MeshStandardMaterial({ color: '#d8b45c', roughness: 0.28, metalness: 0.85 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w + 0.35, 0.3, d + 0.35), wood); base.position.y = -0.15; g.add(base);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.42, 0.04, d + 0.42), gold); trim.position.y = -0.3; g.add(trim);
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(w - 0.06, 0.07, d - 0.06), new THREE.MeshStandardMaterial({ color: '#1f331c', roughness: 1 }));
+    soil.position.y = 0.035; g.add(soil);
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshPhysicalMaterial({
+      color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.1,
+      side: THREE.DoubleSide, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0.05
+    }));
+    glass.position.y = h / 2; glass.renderOrder = 5; g.add(glass);
+    const t = 0.04, hw = w / 2, hd = d / 2;
+    const bar = (sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), gold); m.position.set(x, y, z); g.add(m); };
+    [[-hw, -hd], [hw, -hd], [-hw, hd], [hw, hd]].forEach(([x, z]) => bar(t, h, t, x, h / 2, z));
+    [0, h].forEach(y => { bar(w + t, t, t, 0, y, -hd); bar(w + t, t, t, 0, y, hd); bar(t, t, d + t, -hw, y, 0); bar(t, t, d + t, hw, y, 0); });
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), gold); knob.position.y = h + 0.1; g.add(knob);
+    const glareMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
+    [[-0.18, 0.18], [0.12, 0.07]].forEach(([x, wd]) => {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(w * wd, h * 0.9), glareMat);
+      p.position.set(x * w, h / 2, hd + 0.002); p.rotation.z = 0.18; p.renderOrder = 6; g.add(p);
+    });
+    const n = Math.round(45 * (w * d) / 6), arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { arr[i * 3] = (Math.random() - .5) * (w - 0.2); arr[i * 3 + 1] = Math.random() * h; arr[i * 3 + 2] = (Math.random() - .5) * (d - 0.2); }
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    const sparkles = new THREE.Points(sg, new THREE.PointsMaterial({ color: '#ffe3f1', size: 0.05, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sparkles.userData.h = h; g.add(sparkles);
+    g.userData = { sparkles, size: { w: Math.max(w, d) + 0.6, h: h + 0.2 } };
+    return g;
+  }
+
+  function buildDisplay(keys) {
+    const root = new THREE.Group();
+    if (keys.length === 1) {
+      const fl = buildFlower(describe(keys[0]), keys[0]);
+      const c = buildCase(2.5, Math.max(3.2, fl.userData.height + 0.3), 2.5);
+      root.add(c); root.add(fl); root.userData = c.userData; return root;
+    }
+    const n = keys.length, cols = Math.ceil(Math.sqrt(n * 1.4)), rows = Math.ceil(n / cols), gap = 1.15, sc = 0.55;
+    let maxH = 0;
+    keys.forEach((k, i) => {
+      const fl = buildFlower(describe(k), k); fl.scale.setScalar(sc);
+      fl.position.set((i % cols - (cols - 1) / 2) * gap, 0, (Math.floor(i / cols) - (rows - 1) / 2) * gap);
+      maxH = Math.max(maxH, fl.userData.height * sc); root.add(fl);
+    });
+    const c = buildCase(cols * gap + 0.3, Math.max(2.0, maxH + 0.25), rows * gap + 0.3); root.add(c); root.userData = c.userData;
+    return root;
+  }
+  function disposeTree(o) {
+    o.traverse(m => {
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => { if (mt.map) mt.map.dispose(); mt.dispose(); });
+    });
+  }
+  function addLights(scene) {
+    scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+    scene.add(new THREE.HemisphereLight(0xffeef6, 0x2a1530, 0.5));
+    const key = new THREE.DirectionalLight(0xfff4ea, 0.85); key.position.set(3, 6, 5); scene.add(key);
+    const rim = new THREE.DirectionalLight(0xc4b5fd, 0.6); rim.position.set(-5, 3, -4); scene.add(rim);
+    const warm = new THREE.PointLight(0xffc2dd, 0.55, 14); warm.position.set(0, 3, 2); scene.add(warm);
+  }
+
+  /* ================= viewer ================= */
+  const canvas = document.getElementById('view'), stage = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene(); addLights(scene);
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+  const turntable = new THREE.Group(); scene.add(turntable);
+  let display = null;
+
+  function fit() {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+    if (!display) return;
+    const { w, h } = display.userData.size, tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const dist = Math.max((h + 0.6) / (2 * tan), (w * 1.1) / (2 * tan * camera.aspect)) * 1.08 + w / 2;
+    camera.position.set(0, h * 0.5 + dist * 0.2, dist);
+    camera.lookAt(0, h * 0.44, 0);
+  }
+  function show(keys) {
+    if (display) { turntable.remove(display); disposeTree(display); }
+    display = buildDisplay(keys); turntable.add(display); fit();
+  }
+
+  let rotY = 0.6, rotX = 0.04, velY = 0, dragging = false, lastX = 0, lastY = 0, lastMove = 0;
+  stage.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; stage.setPointerCapture(e.pointerId); document.getElementById('hint').style.opacity = 0; });
+  stage.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+    velY = dx * 0.008; rotY += velY; rotX = Math.max(-0.2, Math.min(0.5, rotX + dy * 0.004)); lastMove = performance.now();
+  });
+  const end = () => { dragging = false; };
+  stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+
+  const clock = new THREE.Clock();
+  function loop() {
+    const dt = Math.min(0.05, clock.getDelta());
+    if (!dragging) { velY *= 0.95; rotY += velY; if (performance.now() - lastMove > 2500) rotY += dt * 0.22; }
+    turntable.rotation.y = rotY; turntable.rotation.x = rotX;
+    const sp = display && display.userData.sparkles;
+    if (sp) { const a = sp.geometry.attributes.position, h = sp.userData.h; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * 0.12; if (y > h) y = 0; a.setY(i, y); } a.needsUpdate = true; }
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- diary thumbnails ---------- */
+  let thumbR = null, thumbScene, thumbCam;
+  function thumbnail(key) {
+    if (!thumbR) {
+      thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      thumbR.setPixelRatio(1); thumbR.setSize(250, 300);
+      thumbScene = new THREE.Scene(); addLights(thumbScene);
+      thumbCam = new THREE.PerspectiveCamera(30, 250 / 300, 0.1, 100);
+    }
+    const d = buildDisplay([key]); d.rotation.y = 0.6; thumbScene.add(d);
+    const h = d.userData.size.h; thumbCam.position.set(0, h * 0.6, 7.4); thumbCam.lookAt(0, h * 0.45, 0);
+    thumbR.render(thumbScene, thumbCam);
+    const url = thumbR.domElement.toDataURL('image/png');
+    thumbScene.remove(d); disposeTree(d);
+    return url;
+  }
+
+  /* ================= page ================= */
+  const $ = id => document.getElementById(id);
+  const tabOne = $('tabOne'), tabAll = $('tabAll'), grid = $('grid');
+  let current = keyOf(today()), mode = 'one';
+
+  function selectDay(key) {
+    mode = 'one'; current = key;
+    tabOne.classList.add('on'); tabAll.classList.remove('on');
+    const f = describe(key), d = fromKey(key), isToday = key === keyOf(today());
+    tabOne.textContent = isToday ? "Today's flower" : "This day's flower";
+    $('title').textContent = isToday ? 'Flower of the day' : 'From the diary';
+    $('date').textContent = longDate(d);
+    $('meta').textContent = `Day ${dayNumber(d)}`;
+    $('fname').textContent = f.name;
+    $('meaning').textContent = f.meaning;
+    $('note').textContent = f.note;
+    $('quote').textContent = f.quote;
+    $('by').textContent = f.by;
+    $('card').classList.remove('garden');
+    document.querySelectorAll('.card-day').forEach(c => c.classList.toggle('sel', c.dataset.key === key));
+    show([key]);
+  }
+  function showAll() {
+    mode = 'all';
+    tabAll.classList.add('on'); tabOne.classList.remove('on');
+    const keys = allDays();
+    $('title').textContent = 'The whole garden';
+    $('date').textContent = `${keys.length} flower${keys.length > 1 ? 's' : ''} so far, since ${shortDate(fromKey(keys[0]))}`;
+    $('meta').textContent = 'every day, kept together';
+    $('fname').textContent = 'Your glass garden';
+    $('meaning').textContent = 'A new flower joins every day';
+    $('note').textContent = 'Turn it around and find them all.';
+    $('quote').textContent = ''; $('by').textContent = '';
+    $('card').classList.add('garden');
+    show(keys.slice(-40));
+  }
+  tabOne.addEventListener('click', () => selectDay(current));
+  tabAll.addEventListener('click', showAll);
+
+  function buildDiary() {
+    grid.innerHTML = '';
+    const keys = allDays().reverse(), tKey = keyOf(today()), t = today(), tom = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+    const lock = document.createElement('div'); lock.className = 'card-day locked';
+    lock.innerHTML = `<div class="img">🔒</div><div class="d">${shortDate(tom)}</div><div class="n">blooms tomorrow</div>`;
+    grid.appendChild(lock);
+    const pending = [];
+    keys.forEach(k => {
+      const f = describe(k), b = document.createElement('button');
+      b.className = 'card-day' + (k === current ? ' sel' : ''); b.dataset.key = k;
+      b.innerHTML = `<div class="img"></div><div class="d"></div><div class="n"></div>`;
+      b.querySelector('.d').textContent = `${k === tKey ? 'Today' : shortDate(fromKey(k))} · Day ${dayNumber(fromKey(k))}`;
+      b.querySelector('.n').textContent = f.name;
+      b.addEventListener('click', () => { selectDay(k); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      grid.appendChild(b); pending.push([k, b.querySelector('.img')]);
+    });
+    (function drawSome() {
+      pending.splice(0, 2).forEach(([k, el]) => { try { el.style.backgroundImage = `url(${thumbnail(k)})`; } catch (e) {} });
+      if (pending.length) setTimeout(drawSome, 60);
+    })();
+  }
+  function tick() {
+    const now = new Date(), t = today(), next = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+    const s = Math.max(0, Math.floor((next - now) / 1000));
+    $('next').innerHTML = `next flower blooms in <b>${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}</b>`;
+    if (s === 0) setTimeout(() => { current = keyOf(today()); buildDiary(); if (mode === 'one') selectDay(current); }, 1500);
+  }
+
+  $('loading').remove();
+  selectDay(current); buildDiary();
+  tick(); setInterval(tick, 1000);
+  new ResizeObserver(fit).observe(stage);
+  loop();
+})();
+</script>
+</body>
+</html>
